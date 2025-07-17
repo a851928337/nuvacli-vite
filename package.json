@@ -1,0 +1,22 @@
+{
+  "name": "@ruan-lib/nuvacli-vite",
+  "version": "1.0.0",
+  "description": "nuva vue3 cli",
+  "main": "index.js",
+  "scripts": {},
+  "bin": {
+    "nuvacli-vite": "bin/serve",
+    "nuvaclibuild-vite": "bin/build",
+    "nuvaclipreview-vite": "bin/preview",
+    "nuva-pubslish": "bin/publish"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "chokidar": "3.5.3",
+    "consola": "2.15.3",
+    "vite": "^7.0.4",
+    "progress": "2.0.3",
+    "shelljs": "0.8.5"
+  }
+}

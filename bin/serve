@@ -1,0 +1,27 @@
+#!/usr/bin/env node
+const path = require("path");
+const { createServer } = require("vite");
+const logger = require("./logger");
+const { generateNewDir, jsOrTsFile, ignoreBase } = require("./utils");
+const subProcess = require("child_process");
+
+// 执行命令
+generateNewDir().then(async () => {
+  // 执行文件监听任务
+  subProcess.fork(
+    process.cwd() + "/node_modules/@mega-apps/nuvacli-vite/bin/watch.js"
+  );
+
+  // 执行项目command
+  const configFile = jsOrTsFile("vite.config");
+  if (configFile) {
+    logger.info("running ....");
+    const server = await createServer({
+      configFile: path.join(process.cwd(), `/.vite_mom/${configFile}`),
+      root: path.join(process.cwd(), "/.vite_mom"),
+    });
+    const listen = await server.listen();
+    logger.start(listen.resolvedUrls.local[0]);
+    logger.start(listen.resolvedUrls.network[0]);
+  }
+});

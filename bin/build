@@ -1,0 +1,154 @@
+#!/usr/bin/env node
+const path = require("path");
+const { build } = require("vite");
+const fs = require("fs");
+const { promises: fsPromises } = fs;
+const logger = require("./logger");
+
+// 判断是js文件还是ts文件
+const jsOrTsFile = (filename) => {
+  if (fs.existsSync(path.join(process.cwd(), `${filename}.ts`))) {
+    return `${filename}.ts`;
+  }
+  if (fs.existsSync(path.join(process.cwd(), `${filename}.js`))) {
+    return `${filename}.js`;
+  }
+};
+
+var ignoreBase = [
+  "node_modules",
+  "dist",
+  ".vite_mom",
+  ".git",
+  ".idea",
+  ".vscode",
+  ".hbuilderx",
+  "commitlint.config.js",
+  "prettier.config.js",
+  "jest.config.js",
+  "yarn.lock",
+  ".editorconfig",
+  ".eslintignore",
+  ".eslintrc.js",
+  ".gitattributes",
+  ".gitignore",
+  ".huskyrc.js",
+  ".prettierrc",
+  ".stylelintignore",
+];
+
+const configFile = jsOrTsFile("vite.config");
+const viteconfig = fs.readFileSync(
+  path.join(process.cwd(), configFile),
+  "utf-8"
+);
+if (viteconfig.match(/(igNoreWacthFiles):((|[^])*?\])/)) {
+  igNoreWacthFilesstr = viteconfig
+    .match(/(igNoreWacthFiles):((|[^])*?\])/)[0]
+    .replace(/(\s*?{\s*?|\s*?,\s*?)(['"])?([a-zA-Z0-9]+)(['"])?:/g, '$1"$3":')
+    .replace("igNoreWacthFiles:", "");
+  if (igNoreWacthFilesstr) {
+    ignoreBase = ignoreBase.concat(
+      igNoreWacthFilesstr
+        .replace("[", "")
+        .replace("]", "")
+        .replace(/'/g, "")
+        .split(",")
+    );
+  }
+}
+// Function to copy files and directories recursively
+const copyFolder = async (src, dest, ignore = []) => {
+  try {
+    const files = await fsPromises.readdir(src);
+
+    if (!(await fsPromises.stat(dest).catch(() => false))) {
+      await fsPromises.mkdir(dest, { recursive: true });
+    }
+
+    for (const file of files) {
+      if (ignore.includes(file)) {
+        continue;
+      }
+
+      const srcPath = path.join(src, file);
+      const destPath = path.join(dest, file);
+
+      const stats = await fsPromises.stat(srcPath);
+
+      if (stats.isDirectory()) {
+        await copyFolder(srcPath, destPath, ignore);
+      } else {
+        await fsPromises.copyFile(srcPath, destPath);
+      }
+    }
+  } catch (err) {
+    console.error(`Error copying folder: ${err.message}`);
+  }
+};
+
+// 读取配置文件动态加载模块
+const replyModule = () => {
+  // let nuvaModules = []
+  const configFile = jsOrTsFile("vite.config");
+  const viteconfig = fs.readFileSync(
+    path.join(process.cwd(), configFile),
+    "utf-8"
+  );
+  const viteStr = viteconfig
+    .match(/(nuvaModules):((|[^])*?\])/)[0]
+    .replace(/(\s*?{\s*?|\s*?,\s*?)(['"])?([a-zA-Z0-9]+)(['"])?:/g, '$1"$3":')
+    .replace("nuvaModules:", "");
+  const nuvaModules = new Function(`return${viteStr}`)();
+  return nuvaModules;
+};
+
+// 模块文件和项目文件进行拷贝到新目录
+const generateNewDir = async () => {
+  const nuvaModules = replyModule();
+  const tasks = nuvaModules.map((module) => ({
+    srcDir: path.join(process.cwd(), "node_modules", module.name),
+    desDir: path.join(process.cwd(), ".vite_mom"),
+    excludes: ignoreBase,
+  }));
+  tasks.push({
+    srcDir: path.join(process.cwd()),
+    desDir: path.join(process.cwd(), ".vite_mom"),
+    excludes: ignoreBase,
+  });
+  logger.info("start copyfile ....");
+  for (let i = 0; i < tasks.length; i++) {
+    const task = tasks[i];
+    logger.info(`copyfile ${task.srcDir}`);
+    await copyFolder(task.srcDir, task.desDir, task.excludes);
+  }
+  logger.info("finish copyfile ....");
+};
+
+// 执行命令
+generateNewDir().then(async () => {
+  await build({
+    root: path.join(process.cwd(), "/.vite_mom"),
+    build: {
+      outDir: path.join(process.cwd(), "/dist"),
+      emptyOutDir: true,
+      chunkSizeWarningLimit: 1500,
+      rollupOptions: {
+        output: {
+          chunkFileNames: "assets/js/[name]-[hash].js",
+          entryFileNames: "assets/js/[name]-[hash].js",
+          assetFileNames: "assets/[ext]/[name]-[hash].[ext]",
+          manualChunks(id) {
+            if (id.includes("node_modules")) {
+              return id
+                .toString()
+                .split("node_modules/")[1]
+                .split("/")[0]
+                .toString();
+            }
+          },
+        },
+      },
+    },
+  });
+});

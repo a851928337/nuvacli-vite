@@ -1,0 +1,17 @@
+#!/usr/bin/env node
+const path = require("path");
+const { preview } = require("vite");
+const fs = require("fs");
+const { promises: fsPromises } = fs;
+const { jsOrTsFile } = require("./utils");
+
+const logger = require("./logger");
+const configFile = jsOrTsFile("vite.config");
+const openPreview = async () => {
+  const listen = await preview({
+    configFile: path.join(process.cwd(), `/.vite_mom/${configFile}`),
+  });
+  logger.start(listen.resolvedUrls.local[0]);
+  logger.start(listen.resolvedUrls.network[0]);
+};
+openPreview();

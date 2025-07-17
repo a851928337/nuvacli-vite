@@ -1,0 +1,15 @@
+#!/usr/bin/env node
+const path = require('path');
+const {info,error} = require("consola");
+const { spawn } = require('child_process');
+const batFilePath = path.join(process.cwd(), "/deploy/deploy.bat");
+
+// 创建一个子进程执行 bat 文件
+const bat = spawn('cmd.exe', ['/c',batFilePath]);
+
+info(`文件拷贝中....`);
+
+// 子进程退出时触发
+bat.on('close', (code) => {
+  info(`发布成功！`);
+});

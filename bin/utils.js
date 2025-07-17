@@ -6,10 +6,10 @@ const { promises: fsPromises } = fs;
 
 // 判断是js文件还是ts文件
 const jsOrTsFile = (filename) => {
-  if (fs.existsSync(path.join(process.cwd() , `${filename}.ts`))) {
+  if (fs.existsSync(path.join(process.cwd(), `${filename}.ts`))) {
     return `${filename}.ts`
   }
-  if (fs.existsSync(path.join(process.cwd() ,`${filename}.js`))) {
+  if (fs.existsSync(path.join(process.cwd(), `${filename}.js`))) {
     return `${filename}.js`
   }
 }
@@ -37,11 +37,11 @@ var ignoreBase = [
 ]
 
 const configFile = jsOrTsFile('vite.config');
-const viteconfig=fs.readFileSync(path.join(process.cwd(),configFile), 'utf-8')
-if(viteconfig.match(/(igNoreWacthFiles):((|[^])*?\])/)){
-  igNoreWacthFilesstr=viteconfig.match(/(igNoreWacthFiles):((|[^])*?\])/)[0].replace(/(\s*?{\s*?|\s*?,\s*?)(['"])?([a-zA-Z0-9]+)(['"])?:/g, '$1"$3":').replace("igNoreWacthFiles:","")
-  if(igNoreWacthFilesstr){
-    ignoreBase=ignoreBase.concat(igNoreWacthFilesstr.replace('[','').replace(']','').replace(/'/g,"").split(','))
+const viteconfig = fs.readFileSync(path.join(process.cwd(), configFile), 'utf-8')
+if (viteconfig.match(/(igNoreWacthFiles):((|[^])*?\])/)) {
+  igNoreWacthFilesstr = viteconfig.match(/(igNoreWacthFiles):((|[^])*?\])/)[0].replace(/(\s*?{\s*?|\s*?,\s*?)(['"])?([a-zA-Z0-9]+)(['"])?:/g, '$1"$3":').replace("igNoreWacthFiles:", "")
+  if (igNoreWacthFilesstr) {
+    ignoreBase = ignoreBase.concat(igNoreWacthFilesstr.replace('[', '').replace(']', '').replace(/'/g, "").split(','))
   }
 }
 // Function to copy files and directories recursively
@@ -77,13 +77,35 @@ const copyFolder = async (src, dest, ignore = []) => {
 
 // 读取配置文件动态加载模块
 const replyModule = () => {
-  // let nuvaModules = []
   const configFile = jsOrTsFile('vite.config');
-  const viteconfig=fs.readFileSync(path.join(process.cwd(),configFile), 'utf-8')
-  const viteStr=viteconfig.match(/(nuvaModules):((|[^])*?\])/)[0].replace(/(\s*?{\s*?|\s*?,\s*?)(['"])?([a-zA-Z0-9]+)(['"])?:/g, '$1"$3":').replace("nuvaModules:","")
-  const nuvaModules=new Function(`return${viteStr}`)()
-  return nuvaModules;
+  const viteconfig = fs.readFileSync(path.join(process.cwd(), configFile), 'utf-8')
 
+  // 移除interface定义和import语句，只保留export default配置部分
+  const cleanConfig = viteconfig
+    .replace(/import\s+.*?from\s+['"][^'"]*['"]\s*;?\s*/g, '') // 移除import语句
+    .replace(/interface\s+\w+[^}]*}\s*/g, '') // 移除interface定义
+    .replace(/type\s+\w+\s*=\s*[^;]*;\s*/g, '') // 移除type定义
+    .replace(/\/\/.*$/gm, '') // 移除单行注释
+    .replace(/\/\*[\s\S]*?\*\//g, '') // 移除多行注释
+
+  // 提取nuvaModules配置，匹配从nuvaModules开始到对应的]结束
+  const nuvaModulesMatch = cleanConfig.match(/nuvaModules\s*:\s*\[[\s\S]*?\]/);
+
+  if (!nuvaModulesMatch) {
+    console.warn('未找到nuvaModules配置');
+    return [];
+  }
+
+  const viteStr = nuvaModulesMatch[0].replace('nuvaModules:', '').trim();
+  console.log('提取的nuvaModules配置:', viteStr);
+
+  try {
+    const nuvaModules = new Function(`return ${viteStr}`)();
+    return nuvaModules;
+  } catch (error) {
+    console.error('解析nuvaModules配置失败:', error.message);
+    return [];
+  }
 }
 
 

@@ -9,7 +9,7 @@ const subProcess = require("child_process");
 generateNewDir().then(async () => {
   // 执行文件监听任务
   subProcess.fork(
-    process.cwd() + "/node_modules/@mega-apps/nuvacli-vite/bin/watch.js"
+    process.cwd() + "/node_modules/@ruan-lib/nuvacli-vite/bin/watch.js"
   );
 
   // 执行项目command

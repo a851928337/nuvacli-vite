@@ -1,9 +1,14 @@
 {
   "name": "@ruan-lib/nuvacli-vite",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "nuva vue3 cli",
   "main": "index.js",
   "scripts": {},
+  "files": [
+    "bin",
+    "package.json",
+    "README.md"
+  ],
   "bin": {
     "nuvacli-vite": "bin/serve",
     "nuvaclibuild-vite": "bin/build",

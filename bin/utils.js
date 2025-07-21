@@ -77,7 +77,7 @@ const copyFolder = async (src, dest, ignore = []) => {
         await copyFolder(srcPath, destPath, ignore);
       } else {
         // 不处理vite.config.ts和package.json
-        if (!['vite.config.ts', 'package.json'].includes(file) && fs.existsSync(destPath)) {
+        if (!['vite.config.ts', 'package.json'].includes(file) && fs.existsSync(srcPath)) {
           // 普通文件直接拷贝
           await fsPromises.copyFile(srcPath, destPath);
         }

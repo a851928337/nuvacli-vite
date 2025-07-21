@@ -1,8 +1,18 @@
 const fs = require('fs');
 const path = require('path');
 const logger = require("./logger");
-const chokidar = require("chokidar");
 const { promises: fsPromises } = fs;
+
+// 读取package.json配置（只读取一次）
+let packageConfig = {};
+try {
+  const packageJsonPath = path.join(process.cwd(), 'package.json');
+  packageConfig = JSON.parse(fs.readFileSync(packageJsonPath, 'utf-8'));
+  logger.info('成功读取package.json配置');
+} catch (error) {
+  logger.error('读取package.json失败:', error.message);
+  packageConfig = {};
+}
 
 // 判断是js文件还是ts文件
 const jsOrTsFile = (filename) => {
@@ -36,14 +46,12 @@ var ignoreBase = [
   '.stylelintignore',
 ]
 
-const configFile = jsOrTsFile('vite.config');
-const viteconfig = fs.readFileSync(path.join(process.cwd(), configFile), 'utf-8')
-if (viteconfig.match(/(igNoreWacthFiles):((|[^])*?\])/)) {
-  igNoreWacthFilesstr = viteconfig.match(/(igNoreWacthFiles):((|[^])*?\])/)[0].replace(/(\s*?{\s*?|\s*?,\s*?)(['"])?([a-zA-Z0-9]+)(['"])?:/g, '$1"$3":').replace("igNoreWacthFiles:", "")
-  if (igNoreWacthFilesstr) {
-    ignoreBase = ignoreBase.concat(igNoreWacthFilesstr.replace('[', '').replace(']', '').replace(/'/g, "").split(','))
-  }
+// 从package.json添加igNoreWacthFiles配置
+if (packageConfig.igNoreWacthFiles && Array.isArray(packageConfig.igNoreWacthFiles)) {
+  ignoreBase = ignoreBase.concat(packageConfig.igNoreWacthFiles);
+  logger.info('加载igNoreWacthFiles配置:', packageConfig.igNoreWacthFiles);
 }
+
 // Function to copy files and directories recursively
 const copyFolder = async (src, dest, ignore = []) => {
   try {
@@ -77,33 +85,11 @@ const copyFolder = async (src, dest, ignore = []) => {
 
 // 读取配置文件动态加载模块
 const replyModule = () => {
-  const configFile = jsOrTsFile('vite.config');
-  const viteconfig = fs.readFileSync(path.join(process.cwd(), configFile), 'utf-8')
-
-  // 移除interface定义和import语句，只保留export default配置部分
-  const cleanConfig = viteconfig
-    .replace(/import\s+.*?from\s+['"][^'"]*['"]\s*;?\s*/g, '') // 移除import语句
-    .replace(/interface\s+\w+[^}]*}\s*/g, '') // 移除interface定义
-    .replace(/type\s+\w+\s*=\s*[^;]*;\s*/g, '') // 移除type定义
-    .replace(/\/\/.*$/gm, '') // 移除单行注释
-    .replace(/\/\*[\s\S]*?\*\//g, '') // 移除多行注释
-
-  // 提取nuvaModules配置，匹配从nuvaModules开始到对应的]结束
-  const nuvaModulesMatch = cleanConfig.match(/nuvaModules\s*:\s*\[[\s\S]*?\]/);
-
-  if (!nuvaModulesMatch) {
-    console.warn('未找到nuvaModules配置');
-    return [];
-  }
-
-  const viteStr = nuvaModulesMatch[0].replace('nuvaModules:', '').trim();
-  console.log('提取的nuvaModules配置:', viteStr);
-
-  try {
-    const nuvaModules = new Function(`return ${viteStr}`)();
-    return nuvaModules;
-  } catch (error) {
-    console.error('解析nuvaModules配置失败:', error.message);
+  if (packageConfig.nuvaModules && Array.isArray(packageConfig.nuvaModules)) {
+    logger.info('加载nuvaModules配置:', packageConfig.nuvaModules);
+    return packageConfig.nuvaModules;
+  } else {
+    logger.warn('未找到nuvaModules配置');
     return [];
   }
 }

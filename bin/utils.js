@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const logger = require("./logger");
 const { promises: fsPromises } = fs;
-const { mergePackageJson } = require('./mergePackageJson');
+const { mergeMultiplePackageJson } = require('./mergePackageJson');
 const { mergeMultipleViteConfigs } = require('./mergeViteConfig');
 
 // 读取package.json配置（只读取一次）
@@ -76,15 +76,8 @@ const copyFolder = async (src, dest, ignore = []) => {
       if (stats.isDirectory()) {
         await copyFolder(srcPath, destPath, ignore);
       } else {
-        // 特殊处理 package.json 文件
-        if (file === 'package.json' && fs.existsSync(destPath)) {
-          const success = await mergePackageJson(srcPath, destPath);
-          // 如果合并失败，执行普通拷贝
-          if (!success) {
-            await fsPromises.copyFile(srcPath, destPath);
-          }
-        }
-        else if (file !== 'vite.config.ts') {
+        // 不处理vite.config.ts和package.json
+        if (!['vite.config.ts', 'package.json'].includes(file) && fs.existsSync(destPath)) {
           // 普通文件直接拷贝
           await fsPromises.copyFile(srcPath, destPath);
         }
@@ -134,6 +127,11 @@ const generateNewDir = async () => {
   }
   const configPaths = tasks.map(task => path.join(task.srcDir, 'vite.config.ts'))
   mergeMultipleViteConfigs(configPaths, path.join(process.cwd(), ".vite_mom/vite.config.ts"))
+
+  // 合并 package.json 文件
+  const packagePaths = tasks.map(task => path.join(task.srcDir, 'package.json'))
+  mergeMultiplePackageJson(packagePaths, path.join(process.cwd(), ".vite_mom/package.json"))
+
   logger.info("finish copyfile ....")
 }
 

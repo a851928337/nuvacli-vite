@@ -1,33 +1,35 @@
 const chokidar = require("chokidar");
 const { replyModule, ignoreBase } = require("./utils");
+const { mergeMultiplePackageJson } = require('./mergePackageJson');
+const { mergeMultipleViteConfigs } = require('./mergeViteConfig');
 const fs = require("fs");
 const { promises: fsPromises } = fs;
 const path = require("path");
 
 // 处理文件复制的函数，特殊处理 package.json
 async function handleFileCopy(src, dest) {
-  // // 检查是否是 package.json 文件
-  // if (path.basename(src) === 'package.json') {
-  //   const success = await mergePackageJson(src, dest);
-  //   // 如果合并失败，使用普通复制
-  //   if (!success) {
-  //     return await copyFileWithRetry(src, dest);
-  //   }
-  //   return success;
-  // } else if (path.basename(src) === 'vite.config.ts') {
-  //   const success = await mergeMultipleViteConfigs([src, dest], dest);
-  //   // 如果合并失败，使用普通复制
-  //   if (!success) {
-  //     return await copyFileWithRetry(src, dest);
-  //   }
-  //   return success;
-  // } else {
-  //   // 其他文件使用重试复制
-  //   return await copyFileWithRetry(src, dest);
-  // }
-  if (!['package.json', 'vite.config.ts'].includes(path.basename(src))) {
+  // 检查是否是 package.json 文件
+  if (path.basename(src) === 'package.json') {
+    const success = mergeMultiplePackageJson([src, dest], dest);
+    // 如果合并失败，使用普通复制
+    if (!success) {
+      return await copyFileWithRetry(src, dest);
+    }
+    return success;
+  } else if (path.basename(src) === 'vite.config.ts') {
+    const success = await mergeMultipleViteConfigs([src, dest], dest);
+    // 如果合并失败，使用普通复制
+    if (!success) {
+      return await copyFileWithRetry(src, dest);
+    }
+    return success;
+  } else {
+    // 其他文件使用重试复制
     return await copyFileWithRetry(src, dest);
   }
+  // if (!['package.json', 'vite.config.ts'].includes(path.basename(src))) {
+  //   return await copyFileWithRetry(src, dest);
+  // }
 }
 
 function copyFileWithRetry(src, dest, retries = 5, delay = 500) {

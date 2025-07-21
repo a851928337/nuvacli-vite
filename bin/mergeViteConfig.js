@@ -1,5 +1,4 @@
 const fs = require('fs');
-const path = require('path');
 const recast = require('recast');
 const babelParser = require('@babel/parser');
 

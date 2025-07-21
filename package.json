@@ -1,6 +1,6 @@
 {
   "name": "@ruan-lib/nuvacli-vite",
-  "version": "1.0.11",
+  "version": "1.0.12",
   "description": "nuva vue3 cli",
   "main": "index.js",
   "scripts": {},

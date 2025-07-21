@@ -2,6 +2,33 @@ const chokidar = require("chokidar");
 const { replyModule, ignoreBase } = require("./utils");
 const fs = require("fs");
 const { promises: fsPromises } = fs;
+const path = require("path");
+
+// 处理文件复制的函数，特殊处理 package.json
+async function handleFileCopy(src, dest) {
+  // // 检查是否是 package.json 文件
+  // if (path.basename(src) === 'package.json') {
+  //   const success = await mergePackageJson(src, dest);
+  //   // 如果合并失败，使用普通复制
+  //   if (!success) {
+  //     return await copyFileWithRetry(src, dest);
+  //   }
+  //   return success;
+  // } else if (path.basename(src) === 'vite.config.ts') {
+  //   const success = await mergeMultipleViteConfigs([src, dest], dest);
+  //   // 如果合并失败，使用普通复制
+  //   if (!success) {
+  //     return await copyFileWithRetry(src, dest);
+  //   }
+  //   return success;
+  // } else {
+  //   // 其他文件使用重试复制
+  //   return await copyFileWithRetry(src, dest);
+  // }
+  if (!['package.json', 'vite.config.ts'].includes(path.basename(src))) {
+    return await copyFileWithRetry(src, dest);
+  }
+}
 
 function copyFileWithRetry(src, dest, retries = 5, delay = 500) {
   return new Promise((resolve, reject) => {
@@ -30,7 +57,7 @@ const watchRootDir = () => {
 
   watcher
     .on("add", async (path) => {
-      await copyFileWithRetry(`${path}`, `.vite_mom/${path}`).catch((err) =>
+      await handleFileCopy(`${path}`, `.vite_mom/${path}`).catch((err) =>
         console.error("Error copying file:", err)
       );
     })
@@ -41,17 +68,17 @@ const watchRootDir = () => {
     })
     .on("unlink", async (path) => {
       if (nuvaModules.length) {
-        await copyFileWithRetry(
+        await handleFileCopy(
           `node_modules/${nuvaModules[nuvaModules.length - 1].name}/${path}`,
           `.vite_mom/${path}`
         ).catch((err) => console.error("Error copying file:", err));
       } else if (fs.existsSync(`.vite_mom/${path}`)) {
         // 删除文件
-        fs.unlink(".vite_mom/" + path, (err) => {});
+        fs.unlink(".vite_mom/" + path, (err) => { });
       }
     })
     .on("change", async (path) => {
-      await copyFileWithRetry(`${path}`, `.vite_mom/${path}`).catch((err) =>
+      await handleFileCopy(`${path}`, `.vite_mom/${path}`).catch((err) =>
         console.error("Error copying file:", err)
       );
     })

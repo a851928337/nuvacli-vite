@@ -2,6 +2,8 @@ const fs = require('fs');
 const path = require('path');
 const logger = require("./logger");
 const { promises: fsPromises } = fs;
+const { mergePackageJson } = require('./mergePackageJson');
+const { mergeMultipleViteConfigs } = require('./mergeViteConfig');
 
 // 读取package.json配置（只读取一次）
 let packageConfig = {};
@@ -25,25 +27,25 @@ const jsOrTsFile = (filename) => {
 }
 
 var ignoreBase = [
-  'node_modules',
-  'dist',
-  '.vite_mom',
-  '.git',
-  '.idea',
-  '.vscode',
-  '.hbuilderx',
-  'commitlint.config.js',
-  'prettier.config.js',
-  'jest.config.js',
-  'yarn.lock',
-  '.editorconfig',
-  '.eslintignore',
-  '.eslintrc.js',
-  '.gitattributes',
-  '.gitignore',
-  '.huskyrc.js',
-  '.prettierrc',
-  '.stylelintignore',
+  "node_modules",
+  "dist",
+  ".vite_mom",
+  ".git",
+  ".idea",
+  ".vscode",
+  ".hbuilderx",
+  "commitlint.config.js",
+  "prettier.config.js",
+  "jest.config.js",
+  "yarn.lock",
+  ".editorconfig",
+  ".eslintignore",
+  ".eslintrc.js",
+  ".gitattributes",
+  ".gitignore",
+  ".huskyrc.js",
+  ".prettierrc",
+  ".stylelintignore",
 ]
 
 // 从package.json添加igNoreWacthFiles配置
@@ -74,7 +76,18 @@ const copyFolder = async (src, dest, ignore = []) => {
       if (stats.isDirectory()) {
         await copyFolder(srcPath, destPath, ignore);
       } else {
-        await fsPromises.copyFile(srcPath, destPath);
+        // 特殊处理 package.json 文件
+        if (file === 'package.json' && fs.existsSync(destPath)) {
+          const success = await mergePackageJson(srcPath, destPath);
+          // 如果合并失败，执行普通拷贝
+          if (!success) {
+            await fsPromises.copyFile(srcPath, destPath);
+          }
+        }
+        else if (file !== 'vite.config.ts') {
+          // 普通文件直接拷贝
+          await fsPromises.copyFile(srcPath, destPath);
+        }
       }
     }
   } catch (err) {
@@ -99,11 +112,14 @@ const replyModule = () => {
 // 模块文件和项目文件进行拷贝到新目录
 const generateNewDir = async () => {
   const nuvaModules = replyModule();
+  // 第一部分：为每个 nuvaModules 创建拷贝任务
   const tasks = nuvaModules.map(module => ({
     srcDir: path.join(process.cwd(), "node_modules", module.name),
     desDir: path.join(process.cwd(), ".vite_mom"),
     excludes: ignoreBase
   }));
+
+  // 第二部分：添加项目自身的拷贝任务
   tasks.push({
     srcDir: path.join(process.cwd()),
     desDir: path.join(process.cwd(), ".vite_mom"),
@@ -113,11 +129,13 @@ const generateNewDir = async () => {
   for (let i = 0; i < tasks.length; i++) {
     const task = tasks[i]
     logger.info(`copyfile ${task.srcDir}`)
+    // 不处理vite.config.ts
     await copyFolder(task.srcDir, task.desDir, task.excludes);
   }
+  const configPaths = tasks.map(task => path.join(task.srcDir, 'vite.config.ts'))
+  mergeMultipleViteConfigs(configPaths, path.join(process.cwd(), ".vite_mom/vite.config.ts"))
   logger.info("finish copyfile ....")
 }
-
 
 module.exports = {
   generateNewDir, jsOrTsFile, ignoreBase, replyModule

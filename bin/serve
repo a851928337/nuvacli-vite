@@ -1,27 +1,59 @@
 #!/usr/bin/env node
 const path = require("path");
+const fs = require("fs");
 const { createServer } = require("vite");
 const logger = require("./logger");
 const { generateNewDir, jsOrTsFile, ignoreBase } = require("./utils");
 const subProcess = require("child_process");
+const { execSync } = require("child_process");
+
+// 安装 .vite_mom 目录下的依赖
+const installDependencies = async () => {
+  const viteMomPath = path.join(process.cwd(), ".vite_mom");
+  const packageJsonPath = path.join(viteMomPath, "package.json");
+
+  // 检查 package.json 是否存在
+  if (!fs.existsSync(packageJsonPath)) {
+    logger.warn(".vite_mom 目录下未找到 package.json，跳过依赖安装");
+    return;
+  }
+
+  // 检测使用哪个包管理器
+  const useYarn = fs.existsSync(path.join(process.cwd(), "yarn.lock"));
+  const packageManager = useYarn ? "yarn" : "npm";
+  const installCommand = useYarn ? "yarn install" : "npm install";
+
+  try {
+    logger.info(`正在使用 ${packageManager} 安装 .vite_mom 目录下的依赖...`);
+
+    // 切换到 .vite_mom 目录并执行安装命令
+    execSync(installCommand, {
+      cwd: viteMomPath,
+      stdio: "inherit"
+    });
+
+    logger.info("依赖安装完成");
+  } catch (error) {
+    logger.error(`依赖安装失败: ${error.message}`);
+    throw error;
+  }
+};
 
 // 执行命令
 generateNewDir().then(async () => {
+  // 安装 .vite_mom 目录下的依赖
+  await installDependencies();
   // 执行文件监听任务
   subProcess.fork(
     process.cwd() + "/node_modules/@ruan-lib/nuvacli-vite/bin/watch.js"
   );
 
-  // 执行项目command
-  const configFile = jsOrTsFile("vite.config");
-  if (configFile) {
-    logger.info("running ....");
-    const server = await createServer({
-      configFile: path.join(process.cwd(), `/.vite_mom/${configFile}`),
-      root: path.join(process.cwd(), "/.vite_mom"),
-    });
-    const listen = await server.listen();
-    logger.start(listen.resolvedUrls.local[0]);
-    logger.start(listen.resolvedUrls.network[0]);
-  }
+  logger.info("running ....");
+  const server = await createServer({
+    configFile: path.join(process.cwd(), `/.vite_mom/vite.config.ts`),
+    root: path.join(process.cwd(), "/.vite_mom"),
+  });
+  const listen = await server.listen();
+  logger.start(listen.resolvedUrls.local[0]);
+  logger.start(listen.resolvedUrls.network[0]);
 });

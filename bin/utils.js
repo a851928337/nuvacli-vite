@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const logger = require("./logger");
 const { promises: fsPromises } = fs;
-const { mergeMultiplePackageJson } = require('./mergePackageJson');
+const { mergeMultipleJson } = require('./mergeJson');
 const { mergeMultipleViteConfigs } = require('./mergeViteConfig');
 
 // 读取package.json配置（只读取一次）
@@ -130,7 +130,10 @@ const generateNewDir = async () => {
 
   // 合并 package.json 文件
   const packagePaths = tasks.map(task => path.join(task.srcDir, 'package.json'))
-  mergeMultiplePackageJson(packagePaths, path.join(process.cwd(), ".vite_mom/package.json"))
+  mergeMultipleJson(packagePaths, path.join(process.cwd(), ".vite_mom/package.json"), {
+    dependencies: 'merge',
+    devDependencies: 'merge',
+  })
 
   logger.info("finish copyfile ....")
 }

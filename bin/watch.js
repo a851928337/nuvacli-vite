@@ -1,6 +1,6 @@
 const chokidar = require("chokidar");
 const { replyModule, ignoreBase } = require("./utils");
-const { mergeMultiplePackageJson } = require('./mergePackageJson');
+const { mergeMultipleJson } = require('./mergeJson');
 const { mergeMultipleViteConfigs } = require('./mergeViteConfig');
 const fs = require("fs");
 const { promises: fsPromises } = fs;
@@ -10,7 +10,10 @@ const path = require("path");
 async function handleFileCopy(src, dest) {
   // 检查是否是 package.json 文件
   if (path.basename(src) === 'package.json') {
-    const success = mergeMultiplePackageJson([src, dest], dest);
+    const success = mergeMultipleJson([src, dest], dest, {
+      dependencies: 'merge',
+      devDependencies: 'merge',
+    });
     // 如果合并失败，使用普通复制
     if (!success) {
       return await copyFileWithRetry(src, dest);

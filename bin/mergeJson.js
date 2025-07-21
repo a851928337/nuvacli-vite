@@ -10,19 +10,19 @@ const logger = require('./logger');
  * @param {function} logFn - 日志函数
  * @returns {object} 合并后的对象
  */
-function deepMergePackageFields(target, source, strategy = {}, depth = 0, logFn = console.log) {
+function deepMergeFields(target, source, strategy = {}, depth = 0, logFn = console.log) {
   const result = { ...target };
   const indent = '  '.repeat(depth);
 
   for (const [key, value] of Object.entries(source)) {
-    const mergeMode = strategy[key] || 'merge';
+    const mergeMode = strategy[key] || 'override';
     const existingValue = result[key];
 
     if (mergeMode === 'merge' && existingValue) {
       if (typeof existingValue === 'object' && typeof value === 'object' &&
         !Array.isArray(existingValue) && !Array.isArray(value)) {
         logFn(`${indent}🔧 合并字段 "${key}"：策略=merge，类型=object → 深度合并`);
-        result[key] = deepMergePackageFields(existingValue, value, strategy, depth + 1, logFn);
+        result[key] = deepMergeFields(existingValue, value, strategy, depth + 1, logFn);
         continue;
       }
 
@@ -59,48 +59,48 @@ function deepMergePackageFields(target, source, strategy = {}, depth = 0, logFn 
 }
 
 /**
- * 合并多个 package.json 文件
- * @param {string[]} packagePaths - package.json 文件路径数组
+ * 合并多个 json 文件
+ * @param {string[]} jsonPaths - json文件路径数组
  * @param {string} outputPath - 输出路径
- * @param {Record<string, 'merge'|'override'>} mergeStrategy - 字段合并策略（默认全 merge）
+ * @param {Record<string, 'merge'|'override'>} mergeStrategy - 字段合并策略（默认全 override）
  * @returns {Promise<boolean>} 是否成功合并
  */
-const mergeMultiplePackageJson = (packagePaths, outputPath, mergeStrategy = {}) => {
+const mergeMultipleJson = (jsonPaths, outputPath, mergeStrategy = {}) => {
   try {
     let mergedContent = {};
     let validFileCount = 0;
 
-    logger.info(`开始合并 ${packagePaths.length} 个 package.json 文件`);
+    logger.info(`开始合并 ${jsonPaths.length} 个 json 文件`);
 
-    for (const packagePath of packagePaths) {
+    for (const jsonPath of jsonPaths) {
       // 检查文件是否存在
-      if (!fs.existsSync(packagePath)) {
-        logger.warn(`⚠️ package.json 文件不存在，跳过: ${packagePath}`);
+      if (!fs.existsSync(jsonPath)) {
+        logger.warn(`⚠️ json 文件不存在，跳过: ${jsonPath}`);
         continue;
       }
 
       try {
-        const content = JSON.parse(fs.readFileSync(packagePath, 'utf-8'));
-        logger.info(`📖 读取配置文件: ${packagePath}`);
+        const content = JSON.parse(fs.readFileSync(jsonPath, 'utf-8'));
+        logger.info(`📖 读取配置文件: ${jsonPath}`);
 
         if (validFileCount === 0) {
           mergedContent = content;
-          logger.info(`📝 使用第一个配置作为基础: ${packagePath}`);
+          logger.info(`📝 使用第一个配置作为基础: ${jsonPath}`);
         } else {
-          logger.info(`🔄 合并配置文件: ${packagePath}`);
-          mergedContent = deepMergePackageFields(mergedContent, content, mergeStrategy, 0, logger.info);
+          logger.info(`🔄 合并配置文件: ${jsonPath}`);
+          mergedContent = deepMergeFields(mergedContent, content, mergeStrategy, 0, logger.info);
         }
 
         validFileCount++;
       } catch (parseError) {
-        logger.error(`解析 package.json 失败: ${packagePath} - ${parseError.message}`);
+        logger.error(`解析 json 失败: ${jsonPath} - ${parseError.message}`);
         continue;
       }
     }
 
     // 如果没有找到任何有效的配置文件
     if (validFileCount === 0) {
-      logger.error('❌ 没有找到任何有效的 package.json 文件');
+      logger.error('❌ 没有找到任何有效的 json 文件');
       return false;
     }
 
@@ -116,5 +116,5 @@ const mergeMultiplePackageJson = (packagePaths, outputPath, mergeStrategy = {}) 
 };
 
 module.exports = {
-  mergeMultiplePackageJson
+  mergeMultipleJson
 };
